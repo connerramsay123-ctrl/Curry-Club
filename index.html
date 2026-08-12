@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Curry Club</title>
+
+<!-- ====================================================================
+     SETUP
+     1. Create (or reuse) a Firebase Realtime Database — free tier.
+     2. Rules tab: { "rules": { ".read": true, ".write": true } }
+     3. Paste your database URL below.
+        If you want to reuse the SAME Firebase project as your other
+        app, that's fine — this app stores everything under a
+        "/curryclub" path so it won't collide with other data there.
+     4. Upload as index.html to a GitHub Pages repo (or any static host).
+==================================================================== -->
+<script>
+  const FIREBASE_URL = "https://tuesday-night-football-e56de-default-rtdb.europe-west1.firebasedatabase.app";
+  const DB_PREFIX = "curryclub";
+</script>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+<style>
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; min-height: 100%; background: #1C1310; }
+body { font-family: 'Inter', sans-serif; color: #F3E7D3; background: #1C1310; }
+button, input, select, textarea { font: inherit; }
+button { cursor: pointer; }
+.font-display { font-family: 'Fraunces', serif; font-optical-sizing: auto; }
+.font-mono { font-family: 'JetBrains Mono', monospace; }
+
+.app {
+  min-height: 100vh;
+  padding-bottom: calc(78px + env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 15% 0%, rgba(193,62,42,0.10), transparent 45%),
+    radial-gradient(circle at 90% 15%, rgba(217,164,65,0.08), transparent 40%),
+    #1C1310;
+}
+
+.header {
+  position: relative;
+  overflow: hidden;
+  padding: 30px 20px 20px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.header-inner, .main { width: 100%; max-width: 480px; margin: 0 auto; }
+.header-label {
+  color: #D9A441; font-size: 12px; font-weight: 700;
+  letter-spacing: 0.2em; text-transform: uppercase; margin-bottom: 6px;
+}
+.header h1 {
+  margin: 0; font-family: 'Fraunces', serif; font-weight: 600;
+  font-size: 38px; line-height: 1; letter-spacing: -0.01em;
+}
+.header-meta {
+  display: flex; gap: 16px; margin-top: 12px; color: #B49A82;
+  font-family: 'JetBrains Mono', monospace; font-size: 11px;
+}
+
+.main { padding: 16px; }
+
+.save-error { max-width: 480px; margin: 12px auto 0; padding: 0 16px; }
+.save-error-box {
+  padding: 9px 12px; border-radius: 8px;
+  background: rgba(193,62,42,0.15); border: 1px solid #C13E2A;
+  color: #E89C8B; font-size: 12px;
+}
+.save-error-detail { margin-top: 4px; font-family: 'JetBrains Mono', monospace; opacity: 0.8; }
+
+.loading, .config-error {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 24px; text-align: center; background: #1C1310;
+}
+.loading-text { color: #B49A82; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+.config-error-title { color: #D9A441; font-weight: 700; margin-bottom: 8px; }
+.config-error-text { color: #B49A82; font-size: 13px; }
+
+.empty { padding: 56px 20px; text-align: center; color: #B49A82; }
+.empty-icon { font-size: 26px; opacity: 0.55; margin-bottom: 12px; }
+.empty-text { font-size: 14px; }
+
+.section-label {
+  margin-bottom: 6px; color: #B49A82; font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em;
+}
+
+/* Signature element: the spice gauge — a heat-scale bar with tick marks,
+   standing in for the plain progress bars a generic dashboard would use. */
+.gauge-bg {
+  position: relative; flex: 1; height: 10px; border-radius: 5px;
+  background: #241713; overflow: hidden;
+}
+.gauge-fill { height: 100%; border-radius: 5px; }
+.gauge-ticks {
+  position: absolute; inset: 0; display: flex; justify-content: space-between;
+  pointer-events: none;
+}
+.gauge-tick { width: 1px; height: 100%; background: rgba(0,0,0,0.25); }
+
+/* NEXT UP */
+.next-up {
+  border-radius: 14px; padding: 16px; margin-bottom: 16px;
+  background: linear-gradient(135deg, rgba(217,164,65,0.16), rgba(193,62,42,0.10));
+  border: 1px solid rgba(217,164,65,0.3);
+}
+.next-up-label {
+  color: #D9A441; font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 4px;
+}
+.next-up-name { font-family: 'Fraunces', serif; font-weight: 600; font-size: 26px; }
+.next-up-empty { color: #B49A82; font-size: 13px; }
+
+/* LEADERBOARD */
+.table-header {
+  display: flex; justify-content: space-between; padding: 0 8px; margin-bottom: 6px;
+  color: #B49A82; font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.15em;
+}
+.venue-row {
+  overflow: hidden; margin-bottom: 8px; border-radius: 12px;
+  background: #2A1D16; border: 1px solid rgba(255,255,255,0.06);
+}
+.venue-button {
+  width: 100%; display: flex; align-items: center; gap: 12px; padding: 12px;
+  border: 0; background: transparent; color: #F3E7D3; text-align: left;
+}
+.rank {
+  width: 28px; height: 28px; flex-shrink: 0; display: flex; align-items: center;
+  justify-content: center; border-radius: 50%; font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; font-weight: 700;
+}
+.venue-info { min-width: 0; flex: 1; }
+.venue-name {
+  font-size: 15px; font-weight: 600; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+}
+.venue-sub {
+  margin-top: 4px; display: flex; align-items: center; gap: 8px;
+}
+.venue-count { color: #B49A82; font-family: 'JetBrains Mono', monospace; font-size: 10px; white-space: nowrap; }
+.score {
+  color: #D9A441; font-family: 'Fraunces', serif; font-weight: 600; font-size: 26px; line-height: 1;
+}
+.expand { color: #B49A82; transition: transform 0.15s; }
+
+.detail-grid {
+  padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px;
+}
+.review-line {
+  display: flex; align-items: center; gap: 8px; font-size: 11px;
+  padding: 8px; border-radius: 8px; background: rgba(255,255,255,0.03);
+}
+.review-judge { width: 62px; flex-shrink: 0; color: #B49A82; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.review-total { width: 32px; text-align: right; font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+.review-comment { color: #B49A82; font-size: 10px; margin-top: 4px; padding: 0 8px 4px; font-style: italic; }
+
+.upcoming-list { margin-top: 20px; }
+.upcoming-title {
+  color: #B49A82; font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 8px;
+}
+.upcoming-pill-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.upcoming-pill {
+  padding: 6px 12px; border-radius: 999px; background: #2A1D16;
+  border: 1px solid rgba(255,255,255,0.08); color: #B49A82; font-size: 12px;
+}
+
+/* STATS */
+.stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+.card { border-radius: 12px; padding: 12px; background: #2A1D16; border: 1px solid rgba(255,255,255,0.06); }
+.card-icon { font-size: 17px; }
+.card-label {
+  margin-top: 8px; color: #B49A82; font-family: 'JetBrains Mono', monospace;
+  font-size: 9px; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.card-name { margin-top: 2px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; font-weight: 600; }
+.card-value { margin-top: 2px; font-family: 'Fraunces', serif; font-weight: 600; font-size: 22px; }
+
+.ranking-card { margin-top: 16px; }
+.ranking-title {
+  margin-bottom: 12px; color: #B49A82; font-family: 'JetBrains Mono', monospace;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em;
+}
+.ranking-row { display: flex; align-items: center; gap: 8px; margin-bottom: 9px; font-size: 12px; }
+.ranking-name { width: 78px; overflow: hidden; color: #B49A82; white-space: nowrap; text-overflow: ellipsis; }
+.ranking-value { width: 30px; text-align: right; font-family: 'JetBrains Mono', monospace; }
+
+/* MANAGE */
+.manage-tabs { display: flex; gap: 4px; flex: 1; padding: 4px; border-radius: 8px; background: #241713; }
+.manage-header { display: flex; align-items: center; margin-bottom: 12px; }
+.manage-tab {
+  flex: 1; padding: 8px 2px; border: 0; border-radius: 6px; background: transparent;
+  color: #B49A82; font-size: 11px; font-weight: 600;
+}
+.manage-tab.active { background: #C13E2A; color: #F3E7D3; }
+.lock-button {
+  width: 36px; height: 36px; flex-shrink: 0; margin-left: 8px; border: 0;
+  border-radius: 8px; background: #241713; color: #B49A82;
+}
+
+.input-row { display: flex; gap: 8px; }
+.input, .select, .date-input, .num-input, textarea.input {
+  width: 100%; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;
+  outline: none; background: #241713; color: #F3E7D3;
+}
+.input { flex: 1; padding: 9px 12px; font-size: 14px; }
+textarea.input { resize: vertical; min-height: 56px; font-family: 'Inter', sans-serif; }
+.add-button { padding: 0 14px; border: 0; border-radius: 8px; background: #C13E2A; color: #F3E7D3; font-size: 20px; font-weight: 700; }
+
+.item-list { margin-top: 8px; }
+.item-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  margin-bottom: 6px; padding: 9px 12px; border-radius: 8px;
+  background: #2A1D16; border: 1px solid rgba(255,255,255,0.06);
+}
+.item-name { font-size: 14px; font-weight: 500; flex: 1; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.item-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.tag {
+  font-family: 'JetBrains Mono', monospace; font-size: 9px; padding: 3px 7px;
+  border-radius: 999px; text-transform: uppercase; letter-spacing: 0.05em;
+}
+.tag-next { background: rgba(217,164,65,0.2); color: #D9A441; }
+.tag-visited { background: rgba(122,148,115,0.2); color: #9BB68F; }
+.mini-button {
+  border: 1px solid rgba(255,255,255,0.15); background: transparent; color: #B49A82;
+  font-size: 10px; padding: 5px 8px; border-radius: 6px; font-weight: 600;
+}
+.delete-button { border: 0; background: transparent; color: #B49A82; font-size: 14px; }
+
+.date-input { padding: 9px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+
+.score-grid { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.score-field { display: flex; align-items: center; gap: 10px; }
+.score-field-label { width: 92px; flex-shrink: 0; font-size: 12px; color: #B49A82; }
+.num-input { padding: 8px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 14px; width: 64px; flex-shrink: 0; }
+.score-field .gauge-bg { flex: 1; }
+
+.total-preview {
+  margin-top: 16px; padding: 14px; border-radius: 12px; text-align: center;
+  background: rgba(217,164,65,0.08); border: 1px solid rgba(217,164,65,0.25);
+}
+.total-preview-label { color: #B49A82; font-family: 'JetBrains Mono', monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.15em; }
+.total-preview-value { font-family: 'Fraunces', serif; font-weight: 600; font-size: 34px; color: #D9A441; margin-top: 2px; }
+
+.primary-button {
+  width: 100%; margin-top: 16px; padding: 12px; border: 0; border-radius: 8px;
+  background: #C13E2A; color: #F3E7D3; font-size: 14px; font-weight: 700;
+}
+.error { margin-top: 8px; color: #E89C8B; font-size: 12px; font-weight: 500; }
+
+.weight-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 8px; }
+.weight-label { font-size: 13px; }
+.weight-input { width: 64px; text-align: center; padding: 8px; }
+
+.change-code {
+  margin-top: 12px; padding: 0; border: 0; background: transparent; color: #B49A82;
+  font-family: 'JetBrains Mono', monospace; font-size: 10px; text-decoration: underline;
+}
+
+/* WHEEL */
+.wheel-overlay {
+  position: fixed; inset: 0; z-index: 50; display: flex; align-items: center; justify-content: center;
+  background: rgba(10,6,4,0.82); padding: 20px;
+}
+.wheel-modal {
+  width: 100%; max-width: 340px; border-radius: 18px; padding: 22px 18px 20px;
+  background: #241713; border: 1px solid rgba(255,255,255,0.08); text-align: center;
+  position: relative;
+}
+.wheel-close {
+  position: absolute; top: 12px; right: 12px; width: 28px; height: 28px; border-radius: 50%;
+  border: 0; background: rgba(255,255,255,0.06); color: #B49A82; font-size: 14px;
+}
+.wheel-title { font-family: 'Fraunces', serif; font-weight: 600; font-size: 19px; margin-bottom: 16px; }
+.wheel-wrap { position: relative; width: 260px; height: 260px; margin: 0 auto 18px; }
+.wheel-pointer {
+  position: absolute; top: -6px; left: 50%; transform: translateX(-50%); z-index: 2;
+  width: 0; height: 0; border-left: 11px solid transparent; border-right: 11px solid transparent;
+  border-top: 18px solid #D9A441; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.4));
+}
+.wheel-canvas { display: block; border-radius: 50%; box-shadow: 0 0 0 4px #1C1310, 0 8px 24px rgba(0,0,0,0.4); }
+.wheel-empty { color: #B49A82; font-size: 13px; padding: 30px 10px; }
+.wheel-result { margin-top: 4px; min-height: 20px; }
+.wheel-result-name { font-family: 'Fraunces', serif; font-weight: 600; font-size: 22px; color: #D9A441; margin-bottom: 12px; }
+.wheel-result-actions { display: flex; gap: 8px; }
+.wheel-result-actions .primary-button, .wheel-result-actions .mini-button-lg { flex: 1; margin-top: 0; }
+.mini-button-lg {
+  padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.15);
+  background: transparent; color: #F3E7D3; font-size: 13px; font-weight: 700;
+}
+
+/* PASSCODE */
+.passcode { padding: 40px 0; text-align: center; }
+.passcode-icon {
+  width: 56px; height: 56px; display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 16px; border-radius: 50%; background: #2A1D16;
+  border: 1px solid rgba(255,255,255,0.08); font-size: 20px;
+}
+.passcode h2 { margin: 0 0 4px; font-family: 'Fraunces', serif; font-size: 18px; font-weight: 600; }
+.passcode-description { margin: 0 auto 20px; max-width: 300px; color: #B49A82; font-size: 12px; }
+.passcode-form { max-width: 240px; margin: 0 auto; }
+.passcode-form .input { width: 100%; margin-bottom: 8px; text-align: center; letter-spacing: 0.2em; }
+.passcode-button { width: 100%; padding: 10px; border: 0; border-radius: 8px; background: #C13E2A; color: #F3E7D3; font-size: 13px; font-weight: 700; }
+
+/* BOTTOM NAV */
+.bottom-nav {
+  position: fixed; z-index: 20; right: 0; bottom: 0; left: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+  background: #241713; border-top: 1px solid rgba(255,255,255,0.08);
+}
+.bottom-nav-inner { display: flex; width: 100%; max-width: 480px; margin: 0 auto; }
+.nav-button {
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 11px 4px; border: 0; background: transparent; color: #B49A82;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+}
+.nav-icon { font-size: 17px; }
+.nav-button.active { color: #D9A441; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+const CATS = [
+  { key: "poppadums", label: "Poppadums" },
+  { key: "starters", label: "Starters" },
+  { key: "mains", label: "Mains" },
+  { key: "sundries", label: "Sundries" },
+  { key: "experience", label: "Experience" }
+];
+const DEFAULT_WEIGHTS = { poppadums: 2, starters: 3, mains: 4, sundries: 2, experience: 2 };
+
+const state = {
+  venues: [],
+  judges: [],
+  reviews: [],
+  weightings: DEFAULT_WEIGHTS,
+  tab: "leaderboard",
+  expandedVenue: null,
+  manageSection: "log",
+  loading: true,
+  error: null,
+  saveError: null,
+  _reviewVenue: "",
+  _reviewJudge: "",
+  _reviewDate: null,
+  _reviewScores: { poppadums: "", starters: "", mains: "", sundries: "", experience: "" },
+  _reviewComments: "",
+  _wheelRotation: 0
+};
+
+function uid() { return Math.random().toString(36).slice(2, 10); }
+function todayStr() { return new Date().toISOString().slice(0, 10); }
+function esc(v) {
+  return String(v ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+async function fbGet(path, fallback) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(`${FIREBASE_URL}/${DB_PREFIX}/${path}.json`, { signal: controller.signal });
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error("Firebase HTTP " + res.status);
+    const data = await res.json();
+    return data === null ? fallback : data;
+  } catch (err) {
+    throw new Error("Could not load Firebase data: " + err.message);
+  }
+}
+async function fbSet(path, value) {
+  try {
+    const res = await fetch(`${FIREBASE_URL}/${DB_PREFIX}/${path}.json`, {
+      method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value)
+    });
+    if (!res.ok) throw new Error("Firebase HTTP " + res.status);
+    state.saveError = null;
+    return true;
+  } catch (err) {
+    state.saveError = err.message;
+    render();
+    return false;
+  }
+}
+
+// ---------- scoring ----------
+function reviewTotal(review, weights) {
+  let sumScore = 0, sumWeight = 0;
+  CATS.forEach(c => {
+    const w = Number(weights[c.key]) || 0;
+    const s = Number(review[c.key]) || 0;
+    sumScore += s * w;
+    sumWeight += w;
+  });
+  return sumWeight ? (sumScore / sumWeight) * 10 : 0;
+}
+
+function venueStandings() {
+  return state.venues
+    .map(v => {
+      const vReviews = state.reviews.filter(r => r.venueId === v.id);
+      const totals = vReviews.map(r => reviewTotal(r, state.weightings));
+      const avg = totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : null;
+      return { ...v, reviewCount: vReviews.length, avg, reviews: vReviews };
+    })
+    .filter(v => v.reviewCount > 0)
+    .sort((a, b) => b.avg - a.avg);
+}
+
+function judgeStandings() {
+  return state.judges.map(j => {
+    const jReviews = state.reviews.filter(r => r.judgeId === j.id);
+    const totals = jReviews.map(r => reviewTotal(r, state.weightings));
+    const avg = totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : null;
+    return { ...j, reviewCount: jReviews.length, avg };
+  });
+}
+
+// ---------- shared bits ----------
+function gaugeColor(score) {
+  // 0-100 heat scale: green (mild) through gold to chili red (hot = good here)
+  if (score >= 75) return "#C13E2A";
+  if (score >= 55) return "#D9A441";
+  return "#7A9473";
+}
+function gauge(score, max) {
+  const pct = Math.max(0, Math.min(100, (score / max) * 100));
+  return `
+    <div class="gauge-bg">
+      <div class="gauge-fill" style="width:${pct}%;background:${gaugeColor((score/max)*100)}"></div>
+      <div class="gauge-ticks">${[0,1,2,3,4].map(()=>'<span class="gauge-tick"></span>').join("")}</div>
+    </div>
+  `;
+}
+function rankBadge(rank) {
+  const colors = ["#D9A441", "#C9C9C9", "#B08655"];
+  const bg = rank <= 3 ? colors[rank - 1] : "#33231C";
+  const fg = rank <= 3 ? "#1C1310" : "#B49A82";
+  return `<div class="rank" style="background:${bg};color:${fg}">${rank}</div>`;
+}
+function emptyState(text) {
+  return `<div class="empty"><div class="empty-icon">🌶️</div><div class="empty-text">${esc(text)}</div></div>`;
+}
+function nameOfVenue(id) { return state.venues.find(v => v.id === id)?.name || "?"; }
+function nameOfJudge(id) { return state.judges.find(j => j.id === id)?.name || "?"; }
+
+// ---------- header ----------
+function header() {
+  return `
+    <header class="header">
+      <div class="header-inner">
+        <div class="header-label">Weekly Ratings</div>
+        <h1>Curry Club</h1>
+        <div class="header-meta">
+          <span>${state.venues.length} venues</span>
+          <span>·</span>
+          <span>${state.reviews.length} visits logged</span>
+        </div>
+      </div>
+    </header>
+  `;
+}
+
+// ---------- LEADERBOARD TAB ----------
+function leaderboardTab() {
+  const standings = venueStandings();
+  const nextVenue = state.venues.find(v => v.isNext);
+  const upcoming = state.venues.filter(v => !v.visited);
+
+  let html = "";
+
+  html += `
+    <div class="next-up">
+      <div class="next-up-label">Next up</div>
+      ${nextVenue
+        ? `<div class="next-up-name">${esc(nextVenue.name)}</div>`
+        : `<div class="next-up-empty">No venue picked yet — set one in Manage → Venues.</div>`}
+    </div>
+  `;
+
+  if (!standings.length) {
+    html += emptyState("Log your first visit to start the leaderboard.");
+  } else {
+    html += `<div class="table-header"><span>Venue</span><span>Score</span></div>`;
+    html += standings.map((v, i) => {
+      const rank = i + 1;
+      const open = state.expandedVenue === v.id;
+      return `
+        <div class="venue-row">
+          <button class="venue-button" onclick="toggleVenue('${v.id}')">
+            ${rankBadge(rank)}
+            <div class="venue-info">
+              <div class="venue-name">${esc(v.name)}</div>
+              <div class="venue-sub">
+                ${gauge(v.avg, 100)}
+                <span class="venue-count">${v.reviewCount} rating${v.reviewCount === 1 ? "" : "s"}</span>
+              </div>
+            </div>
+            <div class="score">${v.avg.toFixed(0)}</div>
+            <span class="expand" style="transform:${open ? "rotate(180deg)" : "none"}">▾</span>
+          </button>
+          ${open ? `
+            <div class="detail-grid">
+              ${v.reviews.map(r => {
+                const t = reviewTotal(r, state.weightings);
+                return `
+                  <div>
+                    <div class="review-line">
+                      <span class="review-judge">${esc(nameOfJudge(r.judgeId))}</span>
+                      ${gauge(t, 100)}
+                      <span class="review-total">${t.toFixed(0)}</span>
+                    </div>
+                    ${r.comments ? `<div class="review-comment">“${esc(r.comments)}”</div>` : ""}
+                  </div>
+                `;
+              }).join("")}
+            </div>
+          ` : ""}
+        </div>
+      `;
+    }).join("");
+  }
+
+  if (upcoming.length) {
+    html += `
+      <div class="upcoming-list">
+        <div class="upcoming-title">On the list</div>
+        <div class="upcoming-pill-row">
+          ${upcoming.map(v => `<span class="upcoming-pill">${esc(v.name)}</span>`).join("")}
+        </div>
+      </div>
+    `;
+  }
+
+  return html;
+}
+
+// ---------- STATS TAB ----------
+function statsTab() {
+  const standings = venueStandings();
+  const judges = judgeStandings().filter(j => j.reviewCount > 0);
+
+  if (!standings.length) return emptyState("Log a visit to unlock stats.");
+
+  const topVenue = standings[0];
+  const mostReviewed = [...standings].sort((a, b) => b.reviewCount - a.reviewCount)[0];
+  const mostGenerous = judges.length ? [...judges].sort((a, b) => b.avg - a.avg)[0] : null;
+  const harshest = judges.length ? [...judges].sort((a, b) => a.avg - b.avg)[0] : null;
+
+  return `
+    <div>
+      <div class="stats-grid">
+        ${statCard("🏆", "Top rated", topVenue.name, topVenue.avg.toFixed(0), "#D9A441")}
+        ${statCard("📋", "Most reviewed", mostReviewed.name, `${mostReviewed.reviewCount} visits`, "#C13E2A")}
+        ${mostGenerous ? statCard("😋", "Most generous critic", mostGenerous.name, mostGenerous.avg.toFixed(0), "#7A9473") : ""}
+        ${harshest ? statCard("🧐", "Harshest critic", harshest.name, harshest.avg.toFixed(0), "#B49A82") : ""}
+      </div>
+
+      <div class="card ranking-card">
+        <div class="ranking-title">Venue rankings</div>
+        ${standings.map(v => `
+          <div class="ranking-row">
+            <span class="ranking-name">${esc(v.name)}</span>
+            ${gauge(v.avg, 100)}
+            <span class="ranking-value">${v.avg.toFixed(0)}</span>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
+}
+function statCard(icon, label, name, value, color) {
+  return `
+    <div class="card">
+      <div class="card-icon">${icon}</div>
+      <div class="card-label">${label}</div>
+      <div class="card-name">${esc(name)}</div>
+      <div class="card-value" style="color:${color}">${esc(value)}</div>
+    </div>
+  `;
+}
+
+// ---------- MANAGE TAB ----------
+function manageTab() {
+  return `
+    <div>
+      <div class="manage-header">
+        <div class="manage-tabs">
+          ${manageButton("log", "Log visit")}
+          ${manageButton("venues", "Venues")}
+          ${manageButton("judges", "Judges")}
+          ${manageButton("settings", "Settings")}
+        </div>
+      </div>
+      ${state.manageSection === "log" ? logVisitSection() : ""}
+      ${state.manageSection === "venues" ? venuesSection() : ""}
+      ${state.manageSection === "judges" ? judgesSection() : ""}
+      ${state.manageSection === "settings" ? settingsSection() : ""}
+    </div>
+  `;
+}
+function manageButton(id, label) {
+  return `<button class="manage-tab ${state.manageSection === id ? "active" : ""}" onclick="setManageSection('${id}')">${label}</button>`;
+}
+
+function venuesSection() {
+  return `
+    <div>
+      <div class="input-row">
+        <input id="newVenue" class="input" placeholder="Add a curry house" onkeydown="if(event.key==='Enter') addVenue()">
+        <button class="add-button" onclick="addVenue()">+</button>
+      </div>
+      <button class="primary-button" onclick="openWheel()">🎡 Spin the wheel</button>
+      <div class="item-list">
+        ${state.venues.length ? state.venues.map(v => `
+          <div class="item-row">
+            <span class="item-name">${esc(v.name)}</span>
+            <div class="item-actions">
+              ${v.isNext ? `<span class="tag tag-next">Next</span>` : `<button class="mini-button" onclick="setNextVenue('${v.id}')">Set next</button>`}
+              ${v.visited ? `<span class="tag tag-visited">Visited</span>` : ""}
+              <button class="delete-button" onclick="removeVenue('${v.id}')">🗑</button>
+            </div>
+          </div>
+        `).join("") : emptyState("No curry houses yet — add your first one above.")}
+      </div>
+    </div>
+  `;
+}
+
+function judgesSection() {
+  return `
+    <div>
+      <div class="input-row">
+        <input id="newJudge" class="input" placeholder="Add a judge" onkeydown="if(event.key==='Enter') addJudge()">
+        <button class="add-button" onclick="addJudge()">+</button>
+      </div>
+      <div class="item-list">
+        ${state.judges.length ? state.judges.map(j => `
+          <div class="item-row">
+            <span class="item-name">${esc(j.name)}</span>
+            <button class="delete-button" onclick="removeJudge('${j.id}')">🗑</button>
+          </div>
+        `).join("") : emptyState("No judges yet — add your first one above.")}
+      </div>
+    </div>
+  `;
+}
+
+function settingsSection() {
+  return `
+    <div>
+      <div class="section-label">Category weightings</div>
+      <div class="card">
+        ${CATS.map(c => `
+          <div class="weight-row">
+            <span class="weight-label">${c.label}</span>
+            <input type="number" min="0" step="0.5" class="input weight-input" value="${esc(state.weightings[c.key])}" onchange="state.weightings['${c.key}']=this.value">
+          </div>
+        `).join("")}
+        <button class="primary-button" style="margin-top:8px" onclick="saveWeightings()">Save weightings</button>
+        <div id="weightError" class="error"></div>
+      </div>
+    </div>
+  `;
+}
+
+async function saveWeightings() {
+  const cleaned = {};
+  for (const c of CATS) {
+    const v = Number(state.weightings[c.key]);
+    if (isNaN(v) || v < 0) {
+      document.getElementById("weightError").textContent = "Weightings must be numbers of 0 or more.";
+      return;
+    }
+    cleaned[c.key] = v;
+  }
+  const ok = await fbSet("weightings", cleaned);
+  if (ok) { state.weightings = cleaned; render(); }
+}
+
+async function addVenue() {
+  const input = document.getElementById("newVenue");
+  const name = input.value.trim();
+  if (!name) return;
+  const next = [...state.venues, { id: uid(), name, visited: false, isNext: false }];
+  const ok = await fbSet("venues", next);
+  if (ok) { state.venues = next; render(); }
+}
+async function removeVenue(id) {
+  const next = state.venues.filter(v => v.id !== id);
+  const ok = await fbSet("venues", next);
+  if (ok) { state.venues = next; render(); }
+}
+async function setNextVenue(id) {
+  const next = state.venues.map(v => ({ ...v, isNext: v.id === id }));
+  const ok = await fbSet("venues", next);
+  if (ok) { state.venues = next; render(); }
+}
+async function addJudge() {
+  const input = document.getElementById("newJudge");
+  const name = input.value.trim();
+  if (!name) return;
+  const next = [...state.judges, { id: uid(), name }];
+  const ok = await fbSet("judges", next);
+  if (ok) { state.judges = next; render(); }
+}
+async function removeJudge(id) {
+  const next = state.judges.filter(j => j.id !== id);
+  const ok = await fbSet("judges", next);
+  if (ok) { state.judges = next; render(); }
+}
+
+// ---------- LOG VISIT ----------
+function logVisitSection() {
+  if (!state.venues.length || !state.judges.length) {
+    return emptyState("Add at least one venue and one judge first, then come back to log a visit.");
+  }
+  if (!state._reviewDate) state._reviewDate = todayStr();
+
+  const partial = {};
+  CATS.forEach(c => partial[c.key] = state._reviewScores[c.key] || 0);
+  const previewTotal = reviewTotal(partial, state.weightings);
+
+  return `
+    <div>
+      <div class="section-label">Venue</div>
+      <select class="select" onchange="state._reviewVenue=this.value">
+        <option value="">Choose a curry house…</option>
+        ${state.venues.map(v => `<option value="${v.id}" ${state._reviewVenue === v.id ? "selected" : ""}>${esc(v.name)}</option>`).join("")}
+      </select>
+
+      <div style="margin-top:12px" class="section-label">Judge</div>
+      <select class="select" onchange="state._reviewJudge=this.value">
+        <option value="">Who's rating…</option>
+        ${state.judges.map(j => `<option value="${j.id}" ${state._reviewJudge === j.id ? "selected" : ""}>${esc(j.name)}</option>`).join("")}
+      </select>
+
+      <div style="margin-top:12px" class="section-label">Date</div>
+      <input type="date" class="date-input" value="${state._reviewDate}" onchange="state._reviewDate=this.value">
+
+      <div class="score-grid">
+        ${CATS.map(c => `
+          <div class="score-field">
+            <span class="score-field-label">${c.label}</span>
+            ${gauge(Number(state._reviewScores[c.key]) || 0, 10)}
+            <input type="number" min="0" max="10" step="0.25" class="input num-input" placeholder="0-10"
+              value="${esc(state._reviewScores[c.key])}"
+              oninput="state._reviewScores['${c.key}']=this.value; updateTotalPreview()">
+          </div>
+        `).join("")}
+      </div>
+
+      <div class="total-preview">
+        <div class="total-preview-label">Weighted total</div>
+        <div class="total-preview-value" id="totalPreview">${previewTotal.toFixed(0)}</div>
+      </div>
+
+      <div style="margin-top:12px" class="section-label">Comments</div>
+      <textarea id="reviewComments" class="input" placeholder="Any notes on the night…" oninput="state._reviewComments=this.value">${esc(state._reviewComments)}</textarea>
+
+      <div id="reviewError" class="error"></div>
+      <button class="primary-button" onclick="saveReview()">+ Save rating</button>
+    </div>
+  `;
+}
+function updateTotalPreview() {
+  const partial = {};
+  CATS.forEach(c => partial[c.key] = state._reviewScores[c.key] || 0);
+  const t = reviewTotal(partial, state.weightings);
+  const el = document.getElementById("totalPreview");
+  if (el) el.textContent = t.toFixed(0);
+  // live-update the little gauges without a full re-render
+  document.querySelectorAll(".score-field").forEach((row, i) => {
+    const key = CATS[i].key;
+    const val = Number(state._reviewScores[key]) || 0;
+    const fill = row.querySelector(".gauge-fill");
+    if (fill) {
+      const pct = Math.max(0, Math.min(100, (val / 10) * 100));
+      fill.style.width = pct + "%";
+      fill.style.background = gaugeColor(pct);
+    }
+  });
+}
+
+async function saveReview() {
+  const error = document.getElementById("reviewError");
+  if (!state._reviewVenue) { error.textContent = "Pick a venue."; return; }
+  if (!state._reviewJudge) { error.textContent = "Pick a judge."; return; }
+  for (const c of CATS) {
+    const v = state._reviewScores[c.key];
+    if (v === "" || v === undefined || isNaN(Number(v))) {
+      error.textContent = `Enter a score for ${c.label}.`;
+      return;
+    }
+  }
+
+  const review = {
+    id: uid(),
+    venueId: state._reviewVenue,
+    judgeId: state._reviewJudge,
+    date: state._reviewDate,
+    comments: state._reviewComments || ""
+  };
+  CATS.forEach(c => review[c.key] = Number(state._reviewScores[c.key]));
+
+  const nextReviews = [...state.reviews, review];
+  const reviewsOk = await fbSet("reviews", nextReviews);
+  if (!reviewsOk) return;
+  state.reviews = nextReviews;
+
+  const nextVenues = state.venues.map(v =>
+    v.id === state._reviewVenue ? { ...v, visited: true, isNext: false } : v
+  );
+  const venuesOk = await fbSet("venues", nextVenues);
+  if (venuesOk) state.venues = nextVenues;
+
+  state._reviewVenue = "";
+  state._reviewJudge = "";
+  state._reviewDate = todayStr();
+  state._reviewScores = { poppadums: "", starters: "", mains: "", sundries: "", experience: "" };
+  state._reviewComments = "";
+  render();
+}
+
+// ---------- WHEEL ----------
+const WHEEL_COLORS = ["#C13E2A", "#D9A441", "#7A9473", "#8B4A3D", "#B08655", "#4E6B57"];
+
+function openWheel() {
+  const candidates = state.venues.filter(v => !v.visited);
+  const html = `
+    <div class="wheel-overlay" id="wheelOverlay">
+      <div class="wheel-modal">
+        <button class="wheel-close" onclick="closeWheel()">✕</button>
+        <div class="wheel-title">Spin for next curry house</div>
+        ${candidates.length === 0 ? `
+          <div class="wheel-empty">Every curry house has been visited — add a new one above, then spin again.</div>
+        ` : `
+          <div class="wheel-wrap">
+            <div class="wheel-pointer"></div>
+            <canvas id="wheelCanvas" class="wheel-canvas"></canvas>
+          </div>
+          <div id="wheelResult" class="wheel-result"></div>
+          <button class="primary-button" id="wheelSpinBtn" onclick="spinWheel()">Spin</button>
+        `}
+      </div>
+    </div>
+  `;
+  document.body.insertAdjacentHTML("beforeend", html);
+  if (candidates.length > 0) {
+    const canvas = document.getElementById("wheelCanvas");
+    canvas.style.transform = `rotate(${state._wheelRotation % 360}deg)`;
+    drawWheel(canvas, candidates);
+  }
+}
+function closeWheel() {
+  const el = document.getElementById("wheelOverlay");
+  if (el) el.remove();
+}
+
+function drawWheel(canvas, venues) {
+  const size = 260;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+  canvas.style.width = size + "px";
+  canvas.style.height = size + "px";
+  const ctx = canvas.getContext("2d");
+  ctx.scale(dpr, dpr);
+  const cx = size / 2, cy = size / 2, r = size / 2 - 4;
+  const seg = (2 * Math.PI) / venues.length;
+
+  venues.forEach((v, i) => {
+    const start = i * seg, end = (i + 1) * seg;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, start, end);
+    ctx.closePath();
+    ctx.fillStyle = WHEEL_COLORS[i % WHEEL_COLORS.length];
+    ctx.fill();
+    ctx.strokeStyle = "rgba(0,0,0,0.28)";
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(start + seg / 2);
+    ctx.textAlign = "right";
+    ctx.fillStyle = "rgba(28,19,16,0.92)";
+    ctx.font = "600 11px Inter, sans-serif";
+    const label = v.name.length > 16 ? v.name.slice(0, 15) + "…" : v.name;
+    ctx.fillText(label, r - 10, 4);
+    ctx.restore();
+  });
+
+  ctx.beginPath();
+  ctx.arc(cx, cy, 18, 0, 2 * Math.PI);
+  ctx.fillStyle = "#241713";
+  ctx.fill();
+  ctx.strokeStyle = "#D9A441";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+}
+
+function spinWheel() {
+  const candidates = state.venues.filter(v => !v.visited);
+  if (!candidates.length) return;
+  const btn = document.getElementById("wheelSpinBtn");
+  const resultBox = document.getElementById("wheelResult");
+  if (btn) btn.disabled = true;
+  if (resultBox) resultBox.innerHTML = "";
+
+  const segDeg = 360 / candidates.length;
+  const idx = Math.floor(Math.random() * candidates.length);
+  const midDeg = idx * segDeg + segDeg / 2;
+  const target = ((270 - midDeg) % 360 + 360) % 360;
+  const extraSpins = 5;
+  const prevFullTurns = Math.floor(state._wheelRotation / 360);
+  const newRotation = (prevFullTurns + extraSpins) * 360 + target;
+
+  const canvas = document.getElementById("wheelCanvas");
+  canvas.style.transition = "transform 4.2s cubic-bezier(0.17,0.67,0.2,1)";
+  canvas.style.transform = `rotate(${newRotation}deg)`;
+  state._wheelRotation = newRotation;
+
+  const winner = candidates[idx];
+  setTimeout(() => {
+    if (!document.getElementById("wheelOverlay")) return; // closed mid-spin
+    const rb = document.getElementById("wheelResult");
+    if (rb) {
+      rb.innerHTML = `
+        <div class="wheel-result-name">${esc(winner.name)}</div>
+        <div class="wheel-result-actions">
+          <button class="mini-button-lg" onclick="spinWheel()">Spin again</button>
+          <button class="primary-button" onclick="confirmWheelWinner('${winner.id}')">Set as next</button>
+        </div>
+      `;
+    }
+    if (btn) btn.disabled = false;
+  }, 4300);
+}
+
+async function confirmWheelWinner(id) {
+  const ok = await setNextVenue(id);
+  closeWheel();
+}
+
+// ---------- nav / gate handlers ----------
+function tabBar() {
+  const tabs = [["leaderboard", "🏆", "Table"], ["stats", "📊", "Stats"], ["manage", "🌶️", "Manage"]];
+  return `
+    <nav class="bottom-nav">
+      <div class="bottom-nav-inner">
+        ${tabs.map(t => `
+          <button class="nav-button ${state.tab === t[0] ? "active" : ""}" onclick="setTab('${t[0]}')">
+            <span class="nav-icon">${t[1]}</span><span>${t[2]}</span>
+          </button>
+        `).join("")}
+      </div>
+    </nav>
+  `;
+}
+function setTab(tab) { state.tab = tab; render(); }
+function setManageSection(section) { state.manageSection = section; render(); }
+function toggleVenue(id) { state.expandedVenue = state.expandedVenue === id ? null : id; render(); }
+
+// ---------- render / init ----------
+function render() {
+  const root = document.getElementById("root");
+  if (state.loading) {
+    root.innerHTML = `<div class="loading"><div class="loading-text">Loading Curry Club…</div></div>`;
+    return;
+  }
+  if (state.error) {
+    root.innerHTML = `
+      <div class="config-error">
+        <div>
+          <div class="config-error-title">ERROR</div>
+          <div class="config-error-text">${esc(state.error)}</div>
+          <button class="passcode-button" style="width:auto;margin-top:16px;padding:10px 20px" onclick="location.reload()">Retry</button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  let content = "";
+  if (state.tab === "leaderboard") content = leaderboardTab();
+  else if (state.tab === "stats") content = statsTab();
+  else content = manageTab();
+
+  root.innerHTML = `
+    <div class="app">
+      ${header()}
+      ${state.saveError ? `
+        <div class="save-error">
+          <div class="save-error-box">
+            That last change didn't save.
+            <div class="save-error-detail">${esc(state.saveError)}</div>
+          </div>
+        </div>
+      ` : ""}
+      <main class="main">${content}</main>
+      ${tabBar()}
+    </div>
+  `;
+}
+
+async function initialise() {
+  if (FIREBASE_URL.includes("PASTE_YOUR")) {
+    state.loading = false;
+    state.error = "Open this file and paste your Firebase database URL into FIREBASE_URL near the top, then re-upload it.";
+    render();
+    return;
+  }
+  try {
+    const [venues, judges, reviews, weightings] = await Promise.all([
+      fbGet("venues", []),
+      fbGet("judges", []),
+      fbGet("reviews", []),
+      fbGet("weightings", DEFAULT_WEIGHTS)
+    ]);
+    state.venues = Array.isArray(venues) ? venues : [];
+    state.judges = Array.isArray(judges) ? judges : [];
+    state.reviews = Array.isArray(reviews) ? reviews : [];
+    state.weightings = weightings && typeof weightings === "object" ? weightings : DEFAULT_WEIGHTS;
+    state.loading = false;
+    render();
+  } catch (err) {
+    state.loading = false;
+    state.error = err.message;
+    render();
+  }
+}
+initialise();
+</script>
+</body>
+</html>
