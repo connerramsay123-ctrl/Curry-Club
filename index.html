@@ -115,6 +115,19 @@ button { cursor: pointer; }
 .next-up-name { font-family: 'Fraunces', serif; font-weight: 600; font-size: 26px; }
 .next-up-empty { color: #B49A82; font-size: 13px; }
 
+/* JUDGE SELECTOR */
+.judge-selector {
+  display: flex; gap: 6px; overflow-x: auto; padding-bottom: 4px; margin-bottom: 14px;
+  -webkit-overflow-scrolling: touch;
+}
+.judge-selector::-webkit-scrollbar { display: none; }
+.judge-pill {
+  flex-shrink: 0; padding: 7px 14px; border-radius: 999px; background: #2A1D16;
+  border: 1px solid rgba(255,255,255,0.08); color: #B49A82; font-size: 12px;
+  font-weight: 600; white-space: nowrap;
+}
+.judge-pill.active { background: #C13E2A; color: #F3E7D3; border-color: #C13E2A; }
+
 /* LEADERBOARD */
 .table-header {
   display: flex; justify-content: space-between; padding: 0 8px; margin-bottom: 6px;
@@ -351,7 +364,8 @@ const state = {
   _reviewDate: null,
   _reviewScores: { poppadums: "", starters: "", mains: "", sundries: "", experience: "" },
   _reviewComments: "",
-  _wheelRotation: 0
+  _wheelRotation: 0,
+  selectedJudge: null
 };
 
 function uid() { return Math.random().toString(36).slice(2, 10); }
@@ -401,10 +415,11 @@ function reviewTotal(review, weights) {
   return sumWeight ? (sumScore / sumWeight) * 10 : 0;
 }
 
-function venueStandings() {
+function venueStandings(judgeId) {
   return state.venues
     .map(v => {
-      const vReviews = state.reviews.filter(r => r.venueId === v.id);
+      let vReviews = state.reviews.filter(r => r.venueId === v.id);
+      if (judgeId) vReviews = vReviews.filter(r => r.judgeId === judgeId);
       const totals = vReviews.map(r => reviewTotal(r, state.weightings));
       const avg = totals.length ? totals.reduce((a, b) => a + b, 0) / totals.length : null;
       return { ...v, reviewCount: vReviews.length, avg, reviews: vReviews };
@@ -450,6 +465,19 @@ function emptyState(text) {
 function nameOfVenue(id) { return state.venues.find(v => v.id === id)?.name || "?"; }
 function nameOfJudge(id) { return state.judges.find(j => j.id === id)?.name || "?"; }
 
+function judgeSelector() {
+  if (!state.judges.length) return "";
+  return `
+    <div class="judge-selector">
+      <button class="judge-pill ${!state.selectedJudge ? "active" : ""}" onclick="selectJudge(null)">Overall</button>
+      ${state.judges.map(j => `
+        <button class="judge-pill ${state.selectedJudge === j.id ? "active" : ""}" onclick="selectJudge('${j.id}')">${esc(j.name)}</button>
+      `).join("")}
+    </div>
+  `;
+}
+function selectJudge(id) { state.selectedJudge = id; render(); }
+
 // ---------- header ----------
 function header() {
   return `
@@ -469,7 +497,8 @@ function header() {
 
 // ---------- LEADERBOARD TAB ----------
 function leaderboardTab() {
-  const standings = venueStandings();
+  const judgeId = state.selectedJudge;
+  const standings = venueStandings(judgeId);
   const nextVenue = state.venues.find(v => v.isNext);
   const upcoming = state.venues.filter(v => !v.visited);
 
@@ -484,8 +513,10 @@ function leaderboardTab() {
     </div>
   `;
 
+  html += judgeSelector();
+
   if (!standings.length) {
-    html += emptyState("Log your first visit to start the leaderboard.");
+    html += emptyState(judgeId ? `${nameOfJudge(judgeId)} hasn't rated anywhere yet.` : "Log your first visit to start the leaderboard.");
   } else {
     html += `<div class="table-header"><span>Venue</span><span>Score</span></div>`;
     html += standings.map((v, i) => {
@@ -543,27 +574,31 @@ function leaderboardTab() {
 
 // ---------- STATS TAB ----------
 function statsTab() {
-  const standings = venueStandings();
-  const judges = judgeStandings().filter(j => j.reviewCount > 0);
+  const judgeId = state.selectedJudge;
+  const standings = venueStandings(judgeId);
 
-  if (!standings.length) return emptyState("Log a visit to unlock stats.");
+  let html = judgeSelector();
 
-  const topVenue = standings[0];
-  const mostReviewed = [...standings].sort((a, b) => b.reviewCount - a.reviewCount)[0];
-  const mostGenerous = judges.length ? [...judges].sort((a, b) => b.avg - a.avg)[0] : null;
-  const harshest = judges.length ? [...judges].sort((a, b) => a.avg - b.avg)[0] : null;
+  if (!standings.length) {
+    return html + emptyState(judgeId ? `${nameOfJudge(judgeId)} hasn't rated anywhere yet.` : "Log a visit to unlock stats.");
+  }
 
-  return `
-    <div>
+  if (judgeId) {
+    const favourite = standings[0];
+    const least = standings[standings.length - 1];
+    const avgGiven = standings.reduce((a, v) => a + v.avg, 0) / standings.length;
+    const visitCount = standings.reduce((a, v) => a + v.reviewCount, 0);
+
+    html += `
       <div class="stats-grid">
-        ${statCard("🏆", "Top rated", topVenue.name, topVenue.avg.toFixed(0), "#D9A441")}
-        ${statCard("📋", "Most reviewed", mostReviewed.name, `${mostReviewed.reviewCount} visits`, "#C13E2A")}
-        ${mostGenerous ? statCard("😋", "Most generous critic", mostGenerous.name, mostGenerous.avg.toFixed(0), "#7A9473") : ""}
-        ${harshest ? statCard("🧐", "Harshest critic", harshest.name, harshest.avg.toFixed(0), "#B49A82") : ""}
+        ${statCard("😍", "Favourite", favourite.name, favourite.avg.toFixed(0), "#D9A441")}
+        ${statCard("😐", "Least favourite", least.name, least.avg.toFixed(0), "#B49A82")}
+        ${statCard("📊", "Average score given", "", avgGiven.toFixed(0), "#C13E2A")}
+        ${statCard("📋", "Visits rated", "", String(visitCount), "#7A9473")}
       </div>
 
       <div class="card ranking-card">
-        <div class="ranking-title">Venue rankings</div>
+        <div class="ranking-title">${esc(nameOfJudge(judgeId))}'s rankings</div>
         ${standings.map(v => `
           <div class="ranking-row">
             <span class="ranking-name">${esc(v.name)}</span>
@@ -572,8 +607,36 @@ function statsTab() {
           </div>
         `).join("")}
       </div>
+    `;
+    return html;
+  }
+
+  const judges = judgeStandings().filter(j => j.reviewCount > 0);
+  const topVenue = standings[0];
+  const mostReviewed = [...standings].sort((a, b) => b.reviewCount - a.reviewCount)[0];
+  const mostGenerous = judges.length ? [...judges].sort((a, b) => b.avg - a.avg)[0] : null;
+  const harshest = judges.length ? [...judges].sort((a, b) => a.avg - b.avg)[0] : null;
+
+  html += `
+    <div class="stats-grid">
+      ${statCard("🏆", "Top rated", topVenue.name, topVenue.avg.toFixed(0), "#D9A441")}
+      ${statCard("📋", "Most reviewed", mostReviewed.name, `${mostReviewed.reviewCount} visits`, "#C13E2A")}
+      ${mostGenerous ? statCard("😋", "Most generous critic", mostGenerous.name, mostGenerous.avg.toFixed(0), "#7A9473") : ""}
+      ${harshest ? statCard("🧐", "Harshest critic", harshest.name, harshest.avg.toFixed(0), "#B49A82") : ""}
+    </div>
+
+    <div class="card ranking-card">
+      <div class="ranking-title">Venue rankings</div>
+      ${standings.map(v => `
+        <div class="ranking-row">
+          <span class="ranking-name">${esc(v.name)}</span>
+          ${gauge(v.avg, 100)}
+          <span class="ranking-value">${v.avg.toFixed(0)}</span>
+        </div>
+      `).join("")}
     </div>
   `;
+  return html;
 }
 function statCard(icon, label, name, value, color) {
   return `
