@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Curry Club — Import</title>
+<style>
+body{margin:0;padding:24px;background:#1C1310;color:#F3E7D3;font-family:Arial,sans-serif}
+main{max-width:520px;margin:40px auto;background:#2A1D16;padding:24px;border-radius:16px}
+h1{margin-top:0} p{color:#B49A82;line-height:1.5}
+button{width:100%;padding:14px;border:0;border-radius:9px;background:#C13E2A;color:white;font-size:16px;font-weight:bold}
+button:disabled{opacity:.5}
+.status{margin-top:16px;padding:12px;border-radius:9px;background:#241713;white-space:pre-wrap;line-height:1.5}
+.warn{color:#D9A441}
+.ok{color:#9BB68F}
+</style>
+</head>
+<body>
+<main>
+<h1>🌶️ Curry Club Import</h1>
+<p>This is a <b>one-time importer</b> for the Curry Club spreadsheet.</p>
+<p>It will replace the existing <code>/curryclub/venues</code>, <code>judges</code>, <code>reviews</code> and <code>weightings</code> data in your Firebase database.</p>
+<p class="warn"><b>Only click Import if you are happy to replace any existing Curry Club data.</b></p>
+<p>Spreadsheet data found: <b>31 venues, 5 judges, 19 reviews.</b></p>
+<button id="importBtn" onclick="runImport()">Import spreadsheet data to Firebase</button>
+<div id="status" class="status">Ready.</div>
+</main>
+<script>
+const FIREBASE_URL = "https://tuesday-night-football-e56de-default-rtdb.europe-west1.firebasedatabase.app";
+const DB_PREFIX = "curryclub";
+const IMPORT_DATA = {"venues":[{"id":"v_ec0899aeb3","name":"Indus","visited":true,"isNext":false},{"id":"v_ba6a0e2f60","name":"Everest","visited":true,"isNext":false},{"id":"v_fe3a2ac141","name":"Maveli","visited":true,"isNext":false},{"id":"v_c7e100efd3","name":"7 spices","visited":true,"isNext":false},{"id":"v_1670a2789e","name":"Rajput","visited":false,"isNext":false},{"id":"v_b0ce690920","name":"Prithiraj","visited":false,"isNext":false},{"id":"v_f999a713fe","name":"Jaflong","visited":false,"isNext":false},{"id":"v_401dcf09a0","name":"Shapla","visited":false,"isNext":false},{"id":"v_b350d00ff5","name":"Akbars (Rotherham)","visited":false,"isNext":false},{"id":"v_77f9394dc6","name":"Akbars (Sheffield)","visited":false,"isNext":true},{"id":"v_673fe0caf4","name":"Cardamom","visited":false,"isNext":false},{"id":"v_f3cf24852f","name":"Rajasthan Spice","visited":false,"isNext":false},{"id":"v_c815da7003","name":"Bay Leaves","visited":false,"isNext":false},{"id":"v_808106d319","name":"Butlers","visited":false,"isNext":false},{"id":"v_91028ea338","name":"Karobar","visited":false,"isNext":false},{"id":"v_d405b001ed","name":"Ranmoor","visited":false,"isNext":false},{"id":"v_166473ff5b","name":"Urban Choola","visited":false,"isNext":false},{"id":"v_ca3fa233f5","name":"5tara","visited":false,"isNext":false},{"id":"v_3565eeb515","name":"Butlers Balti House","visited":false,"isNext":false},{"id":"v_2d964f5ac3","name":"400 D C","visited":false,"isNext":false},{"id":"v_28df12584a","name":"Shapla Restaurant","visited":false,"isNext":false},{"id":"v_e3840e722b","name":"House of Biryani","visited":false,"isNext":false},{"id":"v_b1c1e2af39","name":"Apna Style","visited":false,"isNext":false},{"id":"v_a2c7e6b849","name":"Bay Of Bengal","visited":false,"isNext":false},{"id":"v_4971383d1e","name":"Mowgli Street Food Sheffield","visited":false,"isNext":false},{"id":"v_c591084e79","name":"Karak Chaii Sheffield","visited":false,"isNext":false},{"id":"v_60bb574a2b","name":"Viraaj","visited":false,"isNext":false},{"id":"v_11746df41c","name":"Flame Fusion","visited":false,"isNext":false},{"id":"v_48199401be","name":"Cum bum","visited":false,"isNext":false},{"id":"v_24526c4642","name":"Zara's","visited":false,"isNext":false},{"id":"v_6c89ae0c85","name":"Curry spoon","visited":false,"isNext":false}],"judges":[{"id":"j_3e74413778","name":"Ramsay"},{"id":"j_f0d8265086","name":"Irving"},{"id":"j_a2bb892f7d","name":"Shaun"},{"id":"j_875d259a02","name":"Ellis"},{"id":"j_1de21ca6d8","name":"Rishal"}],"reviews":[{"id":"r_25fba49893","venueId":"v_ec0899aeb3","judgeId":"j_3e74413778","date":"2025-01-22","poppadums":5,"starters":6,"mains":4,"sundries":4.0,"experience":6.5,"comments":"Ordered a honey vala off chefs specials and it was mid "},{"id":"r_368b9caca5","venueId":"v_ba6a0e2f60","judgeId":"j_3e74413778","date":"2026-03-12","poppadums":7,"starters":6.5,"mains":6.5,"sundries":7.0,"experience":6,"comments":"Was decent but the waiter called us all fat cunts. Ordered a prawn laziz "},{"id":"r_c8c56c6c02","venueId":"v_fe3a2ac141","judgeId":"j_3e74413778","date":"2026-04-30","poppadums":2,"starters":7,"mains":6.5,"sundries":6.0,"experience":6,"comments":"Bang average "},{"id":"r_4b40333490","venueId":"v_c7e100efd3","judgeId":"j_3e74413778","date":"2026-06-18","poppadums":8.5,"starters":7.75,"mains":7.25,"sundries":6.5,"experience":9,"comments":"King prawn handi, very good overall, curry a touch too salty"},{"id":"r_148427d2a0","venueId":"v_ec0899aeb3","judgeId":"j_f0d8265086","date":"2026-01-22","poppadums":6,"starters":8,"mains":9,"sundries":7.0,"experience":10,"comments":""},{"id":"r_53387cc6ef","venueId":"v_ba6a0e2f60","judgeId":"j_f0d8265086","date":"2026-03-12","poppadums":5.5,"starters":7,"mains":9,"sundries":6.0,"experience":9,"comments":""},{"id":"r_93cf7ffab5","venueId":"v_c7e100efd3","judgeId":"j_f0d8265086","date":"2026-06-18","poppadums":8.5,"starters":8,"mains":9,"sundries":7.0,"experience":8,"comments":""},{"id":"r_95f291cdde","venueId":"v_ec0899aeb3","judgeId":"j_a2bb892f7d","date":"2026-01-22","poppadums":6,"starters":8,"mains":7,"sundries":7.0,"experience":6,"comments":"Good steady food, mental health ok"},{"id":"r_121a2b7cd1","venueId":"v_ba6a0e2f60","judgeId":"j_a2bb892f7d","date":"2026-03-12","poppadums":5,"starters":9,"mains":7,"sundries":9.0,"experience":7,"comments":"Witnessed a good friend get fat shamed today, other than that good time"},{"id":"r_6429a3c1ad","venueId":"v_fe3a2ac141","judgeId":"j_a2bb892f7d","date":"2026-04-30","poppadums":5,"starters":5,"mains":6,"sundries":6.0,"experience":5,"comments":"Not even a curry house "},{"id":"r_f33643bdb6","venueId":"v_c7e100efd3","judgeId":"j_a2bb892f7d","date":"2026-06-18","poppadums":8,"starters":5,"mains":7,"sundries":6.0,"experience":6,"comments":""},{"id":"r_abc77192d1","venueId":"v_ec0899aeb3","judgeId":"j_875d259a02","date":"2026-01-22","poppadums":6.5,"starters":7.5,"mains":7,"sundries":8.0,"experience":6.5,"comments":"Excellent experience. Great way to start curry club "},{"id":"r_81bd5074b5","venueId":"v_ba6a0e2f60","judgeId":"j_875d259a02","date":"2026-03-12","poppadums":7.5,"starters":6.5,"mains":8.5,"sundries":8.0,"experience":7,"comments":"Hostile server really nice foo"},{"id":"r_15e63f6c5c","venueId":"v_fe3a2ac141","judgeId":"j_875d259a02","date":"2026-04-30","poppadums":2,"starters":4,"mains":4,"sundries":4.0,"experience":6,"comments":"Extremely poor. Nice service food was not good"},{"id":"r_1d2ba7f9c0","venueId":"v_c7e100efd3","judgeId":"j_875d259a02","date":"2026-06-18","poppadums":9,"starters":8.5,"mains":9.5,"sundries":10.0,"experience":8,"comments":"Great time was had. Garlic naan an absolute joke "},{"id":"r_60fa83af11","venueId":"v_ec0899aeb3","judgeId":"j_1de21ca6d8","date":"2026-01-22","poppadums":6.8,"starters":4,"mains":6.5,"sundries":4.0,"experience":6,"comments":"Kinda ok, kinda not"},{"id":"r_25e1aab389","venueId":"v_ba6a0e2f60","judgeId":"j_1de21ca6d8","date":"2026-03-12","poppadums":7,"starters":5,"mains":6.5,"sundries":5.5,"experience":6.7,"comments":"Pops and pick tray gud. Starters below average. Mains lamb was mutton not lamb and tasted very gamey"},{"id":"r_90e7f89a93","venueId":"v_fe3a2ac141","judgeId":"j_1de21ca6d8","date":"2026-04-30","poppadums":3,"starters":6.5,"mains":4,"sundries":5.0,"experience":5,"comments":""},{"id":"r_9ccfe60968","venueId":"v_c7e100efd3","judgeId":"j_1de21ca6d8","date":"2026-06-18","poppadums":7,"starters":7,"mains":5,"sundries":7.0,"experience":7,"comments":"Pops, starters above average. Curry below average"}],"weightings":{"poppadums":2,"starters":3,"mains":4,"sundries":2,"experience":2}};
+
+async function put(path, value) {
+  const res = await fetch(`${FIREBASE_URL}/${DB_PREFIX}/${path}.json`, {
+    method:"PUT",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(value)
+  });
+  if(!res.ok) throw new Error(`${path}: Firebase HTTP ${res.status}`);
+}
+async function runImport() {
+  const btn=document.getElementById("importBtn");
+  const status=document.getElementById("status");
+  if(!confirm("This will replace the current Curry Club data in Firebase. Continue?")) return;
+  btn.disabled=true;
+  try {
+    status.textContent="Importing venues…";
+    await put("venues",IMPORT_DATA.venues);
+    status.textContent="Importing judges…";
+    await put("judges",IMPORT_DATA.judges);
+    status.textContent="Importing reviews…";
+    await put("reviews",IMPORT_DATA.reviews);
+    status.textContent="Importing weightings…";
+    await put("weightings",IMPORT_DATA.weightings);
+    status.innerHTML=`<span class="ok"><b>✓ Import complete!</b></span>\n\n${IMPORT_DATA.venues.length} venues\n${IMPORT_DATA.judges.length} judges\n${IMPORT_DATA.reviews.length} reviews\n\nYou can now open the Curry Club app.`;
+  } catch(err) {
+    status.textContent="IMPORT FAILED\n\n"+err.message+"\n\nCheck your Firebase Realtime Database rules and try again.";
+    btn.disabled=false;
+  }
+}
+</script>
+</body>
+</html>
